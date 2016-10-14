@@ -1,6 +1,8 @@
 from astrometry.util.resample import _lanczos_interpolate
 import numpy as np
-from astrometry.util.util import lanczos3_interpolate
+import fitsio
+from astrometry.util.starutil_numpy import radectoecliptic
+from astrometry.util.starutil_numpy import ecliptictoradec
 
 # always assume odd sidelengths (?)
 # always assume square PSF image (?)
@@ -66,3 +68,76 @@ def rotate_psf(psf_image, theta):
     psf_rot = do_lanczos_interpolation(psf_image, xbox_rot, ybox_rot)
 
     return psf_rot
+
+def get_astrom_atlas():
+    # eventually be smarter about this, with caching and
+    # env variable to avoid hardcoding path to astrom-atlas.fits file
+
+    atlas_fname = '../etc/astrom-atlas.fits'
+    atlas = fitsio.read(atlas_fname)
+
+    return atlas
+
+def _get_astrometry(coadd_id):
+    atlas = get_astrom_atlas()
+    return (atlas[atlas['COADD_ID'] == coadd_id])[0]
+
+def pos_angle_ecliptic(coadd_id):
+    # not intended to be vectorized, coadd_id input should be scalar
+
+    astr = _get_astrometry(coadd_id)
+
+    xcen = astr['CRVAL'][0] - 1.0 # shouldn't be needed
+    ycen = astr['CRVAL'][1] - 1.0 # shouldn't be needed
+
+    racen = astr['CRVAL'][0] # deg
+    deccen = astr['CRVAL'][1] # deg
+
+    # convert (racen, deccen) to ecliptic
+    # input to radectoecliptic should be in degrees
+    lambda_cen, beta_cen = radectoecliptic(racen, deccen)
+
+    epsilon = 10*2.75/3600.0 # degrees, 10 pixels
+
+    beta_test = beta_cen + epsilon
+    ra_test, dec_test = ecliptictoradec(lambda_cen, beta_test)
+
+    # figure out x_test, y_test somehow
+
+    #dx = x_test - xcen
+    #dy = y_test - ycen
+
+    radeg = 180.0/np.pi
+    scale = 3600.0*radeg/2.75
+    dx, dy = ad2xy_tan(ra_test/radeg, dec_test/radeg, racen/radeg, deccen/radeg, scale)
+
+    theta = np.arctan2(-dx, dy)
+    return theta*radeg
+
+def ad2xy_tan(ra, dec, ra0, dec0, scale):
+    """
+    Converts from (lon, lat) to (x, y) based on Tan WCS
+
+    Inputs:
+        ra    - array of RA coordinates, assumed radians J2000
+        dec   - array of DEC coordinates, assumed radians J2000
+        ra0   - array of central RA of projection, radians
+        dec0  - array of central DEC of projection, radians
+        scale - scale factor of projection in pixels/radian
+
+    Outputs:
+        x     - array of x coordinates within each tile, relative to center
+        y     - array of y coordinates within each tile, relative to center
+
+    Comments:
+       This is my port of an IDL routine, issa_proj_gnom.pro,
+       originally written by Doug Finkbeiner.
+    """
+
+    A = np.cos(dec)*np.cos(ra-ra0)
+    F = scale/(np.sin(dec0)*np.sin(dec) + A*np.cos(dec0))
+
+    x = -F*np.cos(dec)*np.sin(ra-ra0)
+    y = F*(np.cos(dec0)*np.sin(dec) - A*np.sin(dec0))
+
+    return x, y
