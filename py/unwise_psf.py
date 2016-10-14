@@ -24,12 +24,8 @@ def do_lanczos_interpolation(image, x_interp, y_interp):
     limages = [image]
     nn = len(ixi) # ??
 
-    print ixi.dtype
-
     laccs = [np.zeros(nn, np.float32) for im in limages]
     _lanczos_interpolate(L, ixi, iyi, dx, dy, laccs, limages, table=True)
-    # should probably reshape the output
-    # to be an image
 
     return (laccs[0]).reshape(sh)
 
@@ -43,7 +39,6 @@ def rotate_psf(psf_image, theta):
     sidelen = sh[0]
 
     half = sidelen/2
-    print half
     # assume theta in degrees !!
 
     xbox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) % sidelen
@@ -64,7 +59,6 @@ def rotate_psf(psf_image, theta):
     xbox_rot += half
     ybox_rot += half
 
-    # need the interpolation command here !!
     psf_rot = do_lanczos_interpolation(psf_image, xbox_rot, ybox_rot)
 
     return psf_rot
@@ -101,8 +95,6 @@ def pos_angle_ecliptic(coadd_id):
 
     beta_test = beta_cen + epsilon
     ra_test, dec_test = ecliptictoradec(lambda_cen, beta_test)
-
-    # figure out x_test, y_test somehow
 
     #dx = x_test - xcen
     #dy = y_test - ycen
@@ -141,3 +133,17 @@ def ad2xy_tan(ra, dec, ra0, dec0, scale):
     y = F*(np.cos(dec0)*np.sin(dec) - A*np.sin(dec0))
 
     return x, y
+
+def get_unwise_psf(band, coadd_id):
+    # band not yet implemented
+
+    # read in the PSF model file
+    model = fitsio.read('../etc/psf_model_w3.fits')
+
+    # figure out rotation angle
+    theta = pos_angle_ecliptic(coadd_id)
+
+    # rotate with rotate_psf
+    rot = rotate_psf(model, theta)
+
+    return rot
