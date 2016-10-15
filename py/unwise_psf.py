@@ -134,11 +134,16 @@ def ad2xy_tan(ra, dec, ra0, dec0, scale):
 
     return x, y
 
+def average_two_scandirs(psf_model):
+    # average the two scan directions (not meant to work near survey poles)
+    return (psf_model + psf_model[::-1, ::-1])/2.0
+
 def get_unwise_psf(band, coadd_id):
     # band not yet implemented
 
     # read in the PSF model file
     model = fitsio.read('../etc/psf_model_w3.fits')
+    model = average_two_scandirs(model)
 
     # figure out rotation angle
     theta = pos_angle_ecliptic(coadd_id)
