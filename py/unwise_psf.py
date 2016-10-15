@@ -59,7 +59,11 @@ def rotate_psf(psf_image, theta):
     xbox_rot += half
     ybox_rot += half
 
+    bad = (xbox_rot < 0) | (ybox_rot < 0) | (xbox_rot > (sidelen-1)) | (ybox_rot > (sidelen-1))
+
     psf_rot = do_lanczos_interpolation(psf_image, xbox_rot, ybox_rot)
+
+    psf_rot *= (~bad)
 
     return psf_rot
 
