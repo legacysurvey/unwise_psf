@@ -14,15 +14,13 @@ def all_coadd_id():
         rot = get_unwise_psf(None, str(row['coadd_id']))
         print rot.shape
 
-def write_rot_plots(indstart, nproc):
+def write_rot_plots(indstart, nproc, out_basedir='/scratch1/scratchdirs/ameisner/unwise_psf_plots'):
     atlas = fitsio.read('~/unwise/pro/allsky-atlas.fits')
 
     ntile = len(atlas)
     indend = min(indstart + nproc, ntile)
 
     atlas = atlas[indstart:indend]
-
-    out_basedir = '/scratch1/scratchdirs/ameisner/unwise_psf_plots'
 
     for i, row in enumerate(atlas):
         coadd_id = str(row['coadd_id'])
