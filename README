@@ -4,7 +4,7 @@ instructions
 2) set the environment variable WISE_PSF_DIR to the unwise_psf/etc directory
 
 examples
-=======
+========
 import unwise_psf
 psf_w1 = unwise_psf.get_unwise_psf(1, '0000m016')
 psf_w2 = unwise_psf.get_unwise_psf(2, '0000m016')
