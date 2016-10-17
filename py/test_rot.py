@@ -37,3 +37,12 @@ def write_rot_plots(indstart, nproc, out_basedir='/scratch1/scratchdirs/ameisner
         if not os.path.exists(outdir): os.mkdir(outdir)
         plt.savefig(outname, dpi=250, bbox_inches='tight')
         plt.cla()
+
+def every_tenth_psf(band):
+    ntile = 18240
+
+    ind = np.arange(0, 18240, 10)
+
+    for _, i in enumerate(ind):
+        print str(_+1) + ' of ' + str(len(ind))
+        write_rot_plots(i, 1, out_basedir='/scratch1/scratchdirs/ameisner/test'+str(band), band=band)
