@@ -1,0 +1,20 @@
+instructions
+============
+1) put unwise_psf/py in your PYTHONPATH
+2) set the environment variable WISE_PSF_DIR to the unwise_psf/etc directory
+
+examples
+=======
+import unwise_psf
+psf_w1 = unwise_psf.get_unwise_psf(1, '0000m016')
+psf_w2 = unwise_psf.get_unwise_psf(2, '0000m016')
+psf_w3 = unwise_psf.get_unwise_psf(3, '0000m016')
+psf_w4 = unwise_psf.get_unwise_psf(4, '0000m016')
+
+psf_w1_small = unwise_psf.get_unwise_psf(1, '0000m016', sidelen=51)
+
+dependencies
+============
+astrometry.net
+numpy
+fitsio
