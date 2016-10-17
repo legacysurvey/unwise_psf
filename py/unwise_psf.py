@@ -4,6 +4,7 @@ import fitsio
 from astrometry.util.starutil_numpy import radectoecliptic
 from astrometry.util.starutil_numpy import ecliptictoradec
 import os
+import warnings
 
 # always assume odd sidelengths (?)
 # always assume square PSF image (?)
@@ -162,7 +163,11 @@ def get_unwise_psf(band, coadd_id, sidelen=None):
     rot = rotate_psf(model, theta)
 
     if sidelen is not None:
-        half = (rot.shape)[0]/2
-        rot = rot[(half - sidelen/2):(half + sidelen/2 + 1), (half - sidelen/2):(half + sidelen/2 + 1)]
+        sh = (rot.shape)
+        if (sidelen > sh[0]):
+            warnings.warn('requested sidelength is larger than that of the PSF model')
+        else:
+            half = sh[0]/2
+            rot = rot[(half - sidelen/2):(half + sidelen/2 + 1), (half - sidelen/2):(half + sidelen/2 + 1)]
 
     return rot
