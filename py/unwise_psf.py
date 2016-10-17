@@ -139,14 +139,20 @@ def ad2xy_tan(ra, dec, ra0, dec0, scale):
     return x, y
 
 def average_two_scandirs(psf_model):
-    # average the two scan directions (not meant to work near survey poles)
+    # average the two scan directions (not meant to be correct near ecl poles)
     return (psf_model + psf_model[::-1, ::-1])/2.0
 
-def get_unwise_psf(band, coadd_id):
-    # band not yet implemented
+def get_unwise_psf(band, coadd_id, sidelen=None):
+    
+    assert(band <= 4)
+    assert(band >= 1)
+
+    # i like having centroid be at the center of a pixel rather than corner
+    if sidelen is not None:
+        assert(sidelen % 2)
 
     # read in the PSF model file
-    model = fitsio.read('../etc/psf_model_w3.fits')
+    model = fitsio.read('../etc/psf_model_w'+str(band)+'.fits')
     model = average_two_scandirs(model)
 
     # figure out rotation angle
@@ -154,5 +160,9 @@ def get_unwise_psf(band, coadd_id):
 
     # rotate with rotate_psf
     rot = rotate_psf(model, theta)
+
+    if sidelen is not None:
+        half = (rot.shape)[0]/2
+        rot = rot[(half - sidelen/2):(half + sidelen/2 + 1), (half - sidelen/2):(half + sidelen/2 + 1)]
 
     return rot
