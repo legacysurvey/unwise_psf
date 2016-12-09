@@ -18,3 +18,7 @@ dependencies
 astrometry.net
 numpy
 fitsio
+
+Python version
+==============
+this code was developed and tested with Python 2.7.12
