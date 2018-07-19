@@ -143,7 +143,26 @@ def average_two_scandirs(psf_model):
     # average the two scan directions (not meant to be correct near ecl poles)
     return (psf_model + psf_model[::-1, ::-1])/2.0
 
-def get_unwise_psf(band, coadd_id, sidelen=None):
+def pad_psf_model(model):
+    sh = model.shape
+    # assume square
+    assert(len(sh) == 2)
+    assert(sh[0] == sh[1])
+
+    new_sidelen = int(np.ceil(np.sqrt(2)*float(sh[0])))
+    if (new_sidelen % 2) == 0:
+        new_sidelen += 1
+
+    psf_padded = np.zeros((new_sidelen, new_sidelen))
+
+    # embed the nonzero portion of the PSF model within the padded cutout
+    ind_l = (new_sidelen - sh[0])/2
+
+    psf_padded[ind_l:(ind_l+sh[0]), ind_l:(ind_l+sh[0])] =  model
+
+    return psf_padded
+
+def get_unwise_psf(band, coadd_id, sidelen=None, pad=False):
     
     assert(band <= 4)
     assert(band >= 1)
@@ -155,6 +174,9 @@ def get_unwise_psf(band, coadd_id, sidelen=None):
     # read in the PSF model file
     model = fitsio.read(os.path.join(os.getenv('WISE_PSF_DIR'), 'psf_model_w'+str(band)+'.fits'))
     model = average_two_scandirs(model)
+
+    if pad:
+        model = pad_psf_model(model)
 
     # figure out rotation angle
     theta = pos_angle_ecliptic(coadd_id)
