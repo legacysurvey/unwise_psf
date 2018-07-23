@@ -162,7 +162,24 @@ def pad_psf_model(model):
 
     return psf_padded
 
-def get_unwise_psf(band, coadd_id, sidelen=None, pad=False):
+def rotate_using_frames(model, frames):
+    assert(np.sum(frames['included']) != 0)
+
+    frames = frames[frames['included'] != 0]
+
+    # i suppose there could be rare cases where PA actually is zero
+    assert(np.sum(frames['pa'] == 0) == 0)
+
+    tot = np.zeros(model.shape)
+
+    for i, pa in enumerate(frames['pa']):
+        print 'rotating to match frame ' + str(i+1) + ' of ' + str(len(frames))
+        tot += rotate_psf(model, pa)
+
+    tot = tot/float(len(frames))
+    return tot
+
+def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None):
     
     assert(band <= 4)
     assert(band >= 1)
@@ -173,16 +190,20 @@ def get_unwise_psf(band, coadd_id, sidelen=None, pad=False):
 
     # read in the PSF model file
     model = fitsio.read(os.path.join(os.getenv('WISE_PSF_DIR'), 'psf_model_w'+str(band)+'.fits'))
-    model = average_two_scandirs(model)
+
+    if frames is None:
+        model = average_two_scandirs(model)
 
     if pad:
         model = pad_psf_model(model)
 
-    # figure out rotation angle
-    theta = pos_angle_ecliptic(coadd_id)
-
-    # rotate with rotate_psf
-    rot = rotate_psf(model, theta)
+    if frames is None:
+        # figure out rotation angle
+        theta = pos_angle_ecliptic(coadd_id)
+        # rotate with rotate_psf
+        rot = rotate_psf(model, theta)
+    else:
+        rot = rotate_using_frames(model, frames)
 
     if sidelen is not None:
         sh = (rot.shape)
