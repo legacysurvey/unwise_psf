@@ -162,7 +162,7 @@ def pad_psf_model(model):
 
     return psf_padded
 
-def rotate_using_frames(model, frames):
+def rotate_using_frames(model, frames, oversample=2):
     assert(np.sum(frames['included']) != 0)
 
     frames = frames[frames['included'] != 0]
@@ -170,14 +170,41 @@ def rotate_using_frames(model, frames):
     # i suppose there could be rare cases where PA actually is zero
     assert(np.sum(frames['pa'] == 0) == 0)
 
-    tot = np.zeros(model.shape)
+    # concept: instead of rotating thousands of times, render the PSF at high
+    # resolution (~2-4x oversampled?) in polar coordinates.  Then convolve
+    # in 1D to get the rotated and summed PSF.  Finally, transform back to
+    # cartesian coordinates.
 
-    for i, pa in enumerate(frames['pa']):
-        print 'rotating to match frame ' + str(i+1) + ' of ' + str(len(frames))
-        tot += rotate_psf(model, pa)
+    order = 4
+    ntheta = 4*model.shape[0]*oversample
+    nrad = model.shape[0]*oversample
+    szo2 = model.shape[0] // 2
+    rr = np.linspace(-5, szo2*np.sqrt(2), nrad)
+    tt = np.linspace(0, 2*np.pi, ntheta, endpoint=False)
+    xx = rr[:, None]*np.cos(tt[None, :])+szo2
+    yy = rr[:, None]*np.sin(tt[None, :])+szo2
+    from scipy.ndimage import map_coordinates
+    modelpolar = map_coordinates(model, [xx, yy], order=order,
+                                 mode='constant', cval=0.,
+                                 output=np.dtype('f4'))
 
-    tot = tot/float(len(frames))
-    return tot
+    tpix = (360-(frames['pa'].astype('f8') % 360))*ntheta/360
+    from numpy import fft
+    modelpolar = fft.rfft(modelpolar, axis=1)
+    freq = fft.rfftfreq(ntheta)
+    convarr = np.sum(np.exp(-2*np.pi*1j*(tpix[None, :]*freq[:, None])),
+                     axis=1)
+    convarr /= len(frames)
+    modelpolar = fft.irfft(modelpolar*convarr, axis=1)
+    szo2 = model.shape[0] // 2
+    xo, yo = np.mgrid[-szo2:szo2+1, -szo2:szo2+1]
+    ro = np.sqrt(xo**2 + yo**2)
+    to = np.arctan2(yo, xo) % (2*np.pi)
+    ro = np.interp(ro, rr, np.arange(len(rr)).astype('f4'))
+    to = np.interp(to, tt, np.arange(len(tt)).astype('f4'))
+    res = map_coordinates(modelpolar, [ro, to], order=order,
+                          mode='wrap', output=np.dtype('f4'))
+    return res
 
 def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None):
     
