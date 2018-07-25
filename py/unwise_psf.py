@@ -9,6 +9,22 @@ import warnings
 # always assume odd sidelengths (?)
 # always assume square PSF image (?)
 
+def dtheta_diff_spike(beta):
+
+  # beta is expected to be in degrees !!
+  # should work for scalar beta or numpy ndarray beta
+
+  # angular sidelength of an L1b image (degrees)
+  sz = 1016.0*2.754/3600.0
+
+  radeg = 180.0/np.pi
+
+  dtheta = 2.0*np.pi*(sz/(360.0*np.cos(beta/radeg))) # radians
+
+  dtheta = np.minimum(dtheta, np.pi/2.0)
+
+  return dtheta*radeg # degrees
+
 def do_lanczos_interpolation(image, x_interp, y_interp):
 
     sh = x_interp.shape # will use this to reshape the output interpolated vals
