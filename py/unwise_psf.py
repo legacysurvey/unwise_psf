@@ -97,6 +97,24 @@ def _get_astrometry(coadd_id):
     atlas = get_astrom_atlas()
     return (atlas[atlas['COADD_ID'] == coadd_id])[0]
 
+def pos_angle_from_radec(ra, dec):
+
+    # convert (ra, dec) to ecliptic
+    # input to radectoecliptic should be in degrees
+    _lambda, beta = radectoecliptic(ra, dec)
+
+    epsilon = 10*2.75/3600.0 # degrees, 10 pixels
+
+    beta_test = beta + epsilon
+    ra_test, dec_test = ecliptictoradec(_lambda, beta_test)
+
+    radeg = 180.0/np.pi
+    scale = 3600.0*radeg/2.75
+    dx, dy = ad2xy_tan(ra_test/radeg, dec_test/radeg, ra/radeg, dec/radeg, scale)
+
+    theta = np.arctan2(-dx, dy)
+    return theta*radeg
+
 def pos_angle_ecliptic(coadd_id):
     # not intended to be vectorized, coadd_id input should be scalar
 
@@ -108,24 +126,7 @@ def pos_angle_ecliptic(coadd_id):
     racen = astr['CRVAL'][0] # deg
     deccen = astr['CRVAL'][1] # deg
 
-    # convert (racen, deccen) to ecliptic
-    # input to radectoecliptic should be in degrees
-    lambda_cen, beta_cen = radectoecliptic(racen, deccen)
-
-    epsilon = 10*2.75/3600.0 # degrees, 10 pixels
-
-    beta_test = beta_cen + epsilon
-    ra_test, dec_test = ecliptictoradec(lambda_cen, beta_test)
-
-    #dx = x_test - xcen
-    #dy = y_test - ycen
-
-    radeg = 180.0/np.pi
-    scale = 3600.0*radeg/2.75
-    dx, dy = ad2xy_tan(ra_test/radeg, dec_test/radeg, racen/radeg, deccen/radeg, scale)
-
-    theta = np.arctan2(-dx, dy)
-    return theta*radeg
+    return pos_angle_from_radec(racen, deccen)
 
 def ad2xy_tan(ra, dec, ra0, dec0, scale):
     """
