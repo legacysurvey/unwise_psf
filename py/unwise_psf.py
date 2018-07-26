@@ -10,20 +10,19 @@ import warnings
 # always assume square PSF image (?)
 
 def dtheta_diff_spike(beta):
+    # beta is expected to be in degrees !!
+    # should work for scalar beta or numpy ndarray beta
 
-  # beta is expected to be in degrees !!
-  # should work for scalar beta or numpy ndarray beta
+    # angular sidelength of an L1b image (degrees)
+    sz = 1016.0*2.754/3600.0
 
-  # angular sidelength of an L1b image (degrees)
-  sz = 1016.0*2.754/3600.0
+    radeg = 180.0/np.pi
 
-  radeg = 180.0/np.pi
+    dtheta = 2.0*np.pi*(sz/(360.0*np.cos(beta/radeg))) # radians
 
-  dtheta = 2.0*np.pi*(sz/(360.0*np.cos(beta/radeg))) # radians
+    dtheta = np.minimum(dtheta, np.pi/2.0)
 
-  dtheta = np.minimum(dtheta, np.pi/2.0)
-
-  return dtheta*radeg # degrees
+    return dtheta*radeg # degrees
 
 def do_lanczos_interpolation(image, x_interp, y_interp):
 
@@ -179,9 +178,27 @@ def pad_psf_model(model):
     # embed the nonzero portion of the PSF model within the padded cutout
     ind_l = (new_sidelen - sh[0])/2
 
-    psf_padded[ind_l:(ind_l+sh[0]), ind_l:(ind_l+sh[0])] =  model
+    psf_padded[ind_l:(ind_l+sh[0]), ind_l:(ind_l+sh[0])] = model
 
     return psf_padded
+
+def rotate_using_rd(model, coadd_id, ra, dec, oversample=2):
+    pa = pos_angle_ecliptic(coadd_id, ra=ra, dec=dec) % 360.
+    lam, beta = radectoecliptic(ra, dec)
+    dpa = dtheta_diff_spike(beta)
+    return rotate_using_boxcar(model, pa, dpa, oversample=oversample)
+
+def rotate_using_boxcar(model, pa, dpa, oversample=2):
+    ntheta = 4*model.shape[0]*oversample
+    from numpy import fft
+    freq = fft.rfftfreq(ntheta)
+    papix = ((-pa) % 360)*ntheta/360.
+    papix2 = ((-pa+180) % 360)*ntheta/360.
+    dpapix = dpa*ntheta/360./2
+    phase1 = np.exp(-2*np.pi*1j*papix*freq)
+    phase2 = np.exp(-2*np.pi*1j*papix2*freq)
+    Fconv_kernel = (phase1 + phase2)/2 * np.sinc(2*freq*dpapix)
+    return rotate_using_convolution(model, Fconv_kernel, oversample=oversample)
 
 def rotate_using_frames(model, frames, oversample=2):
     assert(np.sum(frames['included']) != 0)
@@ -191,6 +208,16 @@ def rotate_using_frames(model, frames, oversample=2):
     # i suppose there could be rare cases where PA actually is zero
     assert(np.sum(frames['pa'] == 0) == 0)
 
+    ntheta = 4*model.shape[0]*oversample
+    tpix = (360-(frames['pa'].astype('f8') % 360))*ntheta/360
+    from numpy import fft
+    freq = fft.rfftfreq(ntheta)
+    Fconv_kernel = np.sum(np.exp(-2*np.pi*1j*(tpix[None, :]*freq[:, None])),
+                          axis=1)
+    Fconv_kernel /= len(frames)
+    return rotate_using_convolution(model, Fconv_kernel, oversample=oversample)
+
+def rotate_using_convolution(model, Fconv_kernel, oversample=2):
     # concept: instead of rotating thousands of times, render the PSF at high
     # resolution (~2-4x oversampled?) in polar coordinates.  Then convolve
     # in 1D to get the rotated and summed PSF.  Finally, transform back to
@@ -206,13 +233,11 @@ def rotate_using_frames(model, frames, oversample=2):
     yy = rr[:, None]*np.sin(tt[None, :])+szo2
     from scipy.ndimage import map_coordinates
     modelpolar = map_coordinates(model, [xx, yy], order=order,
-                                 mode='constant', cval=0.,
+                                 mode='nearest',
                                  output=np.dtype('f4'))
 
-    tpix = (360-(frames['pa'].astype('f8') % 360))*ntheta/360
     from numpy import fft
     modelpolar = fft.rfft(modelpolar, axis=1)
-    freq = fft.rfftfreq(ntheta)
     # this next line is 75% of time at N_frames = 30k.  Most above here could
     # be saved and reused.  We could speed this up dramatically in the many
     # frame case by doing an FFT of the PA distribution rather
@@ -220,10 +245,7 @@ def rotate_using_frames(model, frames, oversample=2):
     # below to make sure to get the angle exactly right (not just right up to
     # one pixel at the far edge of the stamp), but one could imagine doing an
     # FFT plus one phase offset to get the mean exactly right.
-    convarr = np.sum(np.exp(-2*np.pi*1j*(tpix[None, :]*freq[:, None])),
-                     axis=1)
-    convarr /= len(frames)
-    modelpolar = fft.irfft(modelpolar*convarr, axis=1)
+    modelpolar = fft.irfft(modelpolar*Fconv_kernel, axis=1)
     szo2 = model.shape[0] // 2
     xo, yo = np.mgrid[-szo2:szo2+1, -szo2:szo2+1]
     ro = np.sqrt(xo**2 + yo**2)
