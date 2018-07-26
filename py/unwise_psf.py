@@ -192,6 +192,13 @@ def rotate_using_frames(model, frames, oversample=2):
     from numpy import fft
     modelpolar = fft.rfft(modelpolar, axis=1)
     freq = fft.rfftfreq(ntheta)
+    # this next line is 75% of time at N_frames = 30k.  Most above here could
+    # be saved and reused.  We could speed this up dramatically in the many
+    # frame case by doing an FFT of the PA distribution rather
+    # than explicitly calculating this.  I preferred the explicit calculation
+    # below to make sure to get the angle exactly right (not just right up to
+    # one pixel at the far edge of the stamp), but one could imagine doing an
+    # FFT plus one phase offset to get the mean exactly right.
     convarr = np.sum(np.exp(-2*np.pi*1j*(tpix[None, :]*freq[:, None])),
                      axis=1)
     convarr /= len(frames)
