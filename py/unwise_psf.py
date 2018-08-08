@@ -182,13 +182,20 @@ def pad_psf_model(model):
 
     return psf_padded
 
-def rotate_using_rd(model, coadd_id, ra, dec, oversample=2):
+def rotate_using_rd(model, coadd_id, ra=None, dec=None,
+                    oversample=2, cache=False):
+    if (ra is None) or (dec is None):
+        astr = _get_astrometry(coadd_id)
+        ra = astr['CRVAL'][0]  # deg
+        dec = astr['CRVAL'][1]  # deg
+
     pa = pos_angle_ecliptic(coadd_id, ra=ra, dec=dec) % 360.
     lam, beta = radectoecliptic(ra, dec)
     dpa = dtheta_diff_spike(beta)
-    return rotate_using_boxcar(model, pa, dpa, oversample=oversample)
+    return rotate_using_boxcar(model, pa, dpa, oversample=oversample,
+                               cache=cache)
 
-def rotate_using_boxcar(model, pa, dpa, oversample=2):
+def rotate_using_boxcar(model, pa, dpa, oversample=2, cache=False):
     ntheta = 4*model.shape[0]*oversample
     from numpy import fft
     freq = fft.rfftfreq(ntheta)
@@ -198,9 +205,10 @@ def rotate_using_boxcar(model, pa, dpa, oversample=2):
     phase1 = np.exp(-2*np.pi*1j*papix*freq)
     phase2 = np.exp(-2*np.pi*1j*papix2*freq)
     Fconv_kernel = (phase1 + phase2)/2 * np.sinc(2*freq*dpapix)
-    return rotate_using_convolution(model, Fconv_kernel, oversample=oversample)
+    return rotate_using_convolution(model, Fconv_kernel, oversample=oversample,
+                                    cache=cache)
 
-def rotate_using_frames(model, frames, oversample=2):
+def rotate_using_frames(model, frames, oversample=2, cache=False):
     assert(np.sum(frames['included']) != 0)
 
     frames = frames[frames['included'] != 0]
@@ -215,36 +223,36 @@ def rotate_using_frames(model, frames, oversample=2):
     Fconv_kernel = np.sum(np.exp(-2*np.pi*1j*(tpix[None, :]*freq[:, None])),
                           axis=1)
     Fconv_kernel /= len(frames)
-    return rotate_using_convolution(model, Fconv_kernel, oversample=oversample)
+    return rotate_using_convolution(model, Fconv_kernel, oversample=oversample,
+                                    cache=cache)
 
-def rotate_using_convolution(model, Fconv_kernel, oversample=2):
+def rotate_using_convolution(model, Fconv_kernel, oversample=2, cache=False):
     # concept: instead of rotating thousands of times, render the PSF at high
     # resolution (~2-4x oversampled?) in polar coordinates.  Then convolve
     # in 1D to get the rotated and summed PSF.  Finally, transform back to
     # cartesian coordinates.
 
-    order = 4
-    ntheta = 4*model.shape[0]*oversample
-    nrad = model.shape[0]*oversample
-    szo2 = model.shape[0] // 2
-    rr = np.linspace(-5, szo2*np.sqrt(2), nrad)
-    tt = np.linspace(0, 2*np.pi, ntheta, endpoint=False)
-    xx = rr[:, None]*np.cos(tt[None, :])+szo2
-    yy = rr[:, None]*np.sin(tt[None, :])+szo2
-    from scipy.ndimage import map_coordinates
-    modelpolar = map_coordinates(model, [xx, yy], order=order,
-                                 mode='nearest',
-                                 output=np.dtype('f4'))
-
+    self = rotate_using_convolution
     from numpy import fft
-    modelpolar = fft.rfft(modelpolar, axis=1)
-    # this next line is 75% of time at N_frames = 30k.  Most above here could
-    # be saved and reused.  We could speed this up dramatically in the many
-    # frame case by doing an FFT of the PA distribution rather
-    # than explicitly calculating this.  I preferred the explicit calculation
-    # below to make sure to get the angle exactly right (not just right up to
-    # one pixel at the far edge of the stamp), but one could imagine doing an
-    # FFT plus one phase offset to get the mean exactly right.
+    from scipy.ndimage import map_coordinates
+    order = 4
+    if cache > 0 and getattr(self, 'cache', None) is not None:
+        modelpolar, rr, tt = self.cache
+    else:
+        ntheta = 4*model.shape[0]*oversample
+        nrad = model.shape[0]*oversample
+        szo2 = model.shape[0] // 2
+        rr = np.linspace(-5, szo2*np.sqrt(2), nrad)
+        tt = np.linspace(0, 2*np.pi, ntheta, endpoint=False)
+        xx = rr[:, None]*np.cos(tt[None, :])+szo2
+        yy = rr[:, None]*np.sin(tt[None, :])+szo2
+        modelpolar = map_coordinates(model, [xx, yy], order=order,
+                                     mode='nearest',
+                                     output=np.dtype('f4'))
+        modelpolar = fft.rfft(modelpolar, axis=1)
+        if cache:
+            self.cache = (modelpolar, rr, tt)
+
     modelpolar = fft.irfft(modelpolar*Fconv_kernel, axis=1)
     szo2 = model.shape[0] // 2
     xo, yo = np.mgrid[-szo2:szo2+1, -szo2:szo2+1]
