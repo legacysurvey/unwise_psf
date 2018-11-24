@@ -55,11 +55,11 @@ def rotate_psf(psf_image, theta):
 
     sidelen = sh[0]
 
-    half = sidelen/2
+    half = sidelen//2
     # assume theta in degrees !!
 
     xbox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) % sidelen
-    ybox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) / sidelen
+    ybox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) // sidelen
 
     xbox = xbox.astype(float)
     ybox = ybox.astype(float)
