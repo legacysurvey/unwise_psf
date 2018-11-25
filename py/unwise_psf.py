@@ -55,11 +55,11 @@ def rotate_psf(psf_image, theta):
 
     sidelen = sh[0]
 
-    half = sidelen/2
+    half = sidelen//2
     # assume theta in degrees !!
 
     xbox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) % sidelen
-    ybox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) / sidelen
+    ybox = np.arange(sidelen*sidelen).reshape(sidelen, sidelen) // sidelen
 
     xbox = xbox.astype(float)
     ybox = ybox.astype(float)
@@ -94,7 +94,9 @@ def get_astrom_atlas():
 
 def _get_astrometry(coadd_id):
     atlas = get_astrom_atlas()
-    return (atlas[atlas['COADD_ID'] == coadd_id])[0]
+    match, = np.nonzero([c.decode() == coadd_id for c in atlas['COADD_ID']])
+    assert(len(match) == 1)
+    return atlas[match[0]]
 
 def pos_angle_ecliptic(coadd_id, ra=None, dec=None):
     # not intended to be vectorized, coadd_id input should be scalar
@@ -296,6 +298,6 @@ def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None):
             warnings.warn('requested sidelength is larger than that of the PSF model')
         else:
             half = sh[0]/2
-            rot = rot[(half - sidelen/2):(half + sidelen/2 + 1), (half - sidelen/2):(half + sidelen/2 + 1)]
+            rot = rot[(half - sidelen//2):(half + sidelen//2 + 1), (half - sidelen//2):(half + sidelen//2 + 1)]
 
     return rot
