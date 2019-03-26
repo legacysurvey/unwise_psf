@@ -266,7 +266,8 @@ def rotate_using_convolution(model, Fconv_kernel, oversample=2, cache=False):
                           mode='wrap', output=np.dtype('f4'))
     return res
 
-def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None):
+def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None,
+                   azimuthal_broadening=True):
     
     assert(band <= 4)
     assert(band >= 1)
@@ -285,10 +286,13 @@ def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None):
         model = pad_psf_model(model)
 
     if frames is None:
-        # figure out rotation angle
-        theta = pos_angle_ecliptic(coadd_id)
-        # rotate with rotate_psf
-        rot = rotate_psf(model, theta)
+        if not azimuthal_broadening:
+            # figure out rotation angle
+            theta = pos_angle_ecliptic(coadd_id)
+            # rotate with rotate_psf
+            rot = rotate_psf(model, theta)
+        else:
+            rot = rotate_using_rd(model, coadd_id)
     else:
         rot = rotate_using_frames(model, frames)
 
