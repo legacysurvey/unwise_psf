@@ -267,7 +267,7 @@ def rotate_using_convolution(model, Fconv_kernel, oversample=2, cache=False):
     return res
 
 def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None,
-                   azimuthal_broadening=True):
+                   azimuthal_broadening=True, modelname=''):
     
     assert(band <= 4)
     assert(band >= 1)
@@ -277,7 +277,10 @@ def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None,
         assert(sidelen % 2)
 
     # read in the PSF model file
-    model = fitsio.read(os.path.join(os.getenv('WISE_PSF_DIR'), 'psf_model_w'+str(band)+'.fits'))
+    if len(modelname) > 0:
+        modelname = '_' + modelname
+    model = fitsio.read(os.path.join(os.getenv('WISE_PSF_DIR'), 
+                                     'psf_model_w'+str(band)+modelname+'.fits'))
 
     if frames is None:
         model = average_two_scandirs(model)
