@@ -1,7 +1,7 @@
 instructions
 ============
 1) put unwise_psf/py in your PYTHONPATH
-2) set the environment variable WISE_PSF_DIR to the unwise_psf/etc directory
+2) set the environment variable WISE_PSF_DIR to the unwise_psf/py/unwise_psf/data directory
 
 examples
 ========
