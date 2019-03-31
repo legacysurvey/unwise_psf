@@ -5,7 +5,7 @@ instructions
 
 examples
 ========
-import unwise_psf
+import unwise_psf.unwise_psf as unwise_psf
 psf_w1 = unwise_psf.get_unwise_psf(1, '0000m016')
 psf_w2 = unwise_psf.get_unwise_psf(2, '0000m016')
 psf_w3 = unwise_psf.get_unwise_psf(3, '0000m016')
@@ -19,9 +19,9 @@ astrometry.net
 numpy
 fitsio
 
-Python version
-==============
-this code was developed and tested with Python 2.7.12
+note about Python versions
+==========================
+this code was originally developed and tested with Python 2.7.12, but has since been modified for Python 3 by Dustin Lang
 
 @MISC{2019ascl.soft01004M,
    author = {{Meisner}, A. and {Schlafly}, E.},
