@@ -18,6 +18,9 @@ dependencies
 astrometry.net
 numpy
 fitsio
+os
+warnings
+scipy
 
 note about Python versions
 ==========================
