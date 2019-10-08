@@ -21,6 +21,7 @@ fitsio
 os
 warnings
 scipy
+pkg_resources
 
 note about Python versions
 ==========================
