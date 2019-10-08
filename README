@@ -18,8 +18,6 @@ dependencies
 astrometry.net
 numpy
 fitsio
-os
-warnings
 scipy
 pkg_resources
 
