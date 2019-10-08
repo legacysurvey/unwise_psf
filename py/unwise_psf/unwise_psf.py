@@ -5,6 +5,7 @@ from astrometry.util.starutil_numpy import radectoecliptic
 from astrometry.util.starutil_numpy import ecliptictoradec
 import os
 import warnings
+from pkg_resources import resource_filename
 
 # always assume odd sidelengths (?)
 # always assume square PSF image (?)
@@ -87,7 +88,7 @@ def rotate_psf(psf_image, theta):
 def get_astrom_atlas():
     # eventually be smarter about this, with caching
 
-    atlas_fname = os.path.join(os.getenv('WISE_PSF_DIR'), 'astrom-atlas.fits')
+    atlas_fname = resource_filename('unwise_psf', 'data/astrom-atlas.fits')
     atlas = fitsio.read(atlas_fname)
 
     return atlas
@@ -279,8 +280,7 @@ def get_unwise_psf(band, coadd_id, sidelen=None, pad=False, frames=None,
     # read in the PSF model file
     if len(modelname) > 0:
         modelname = '_' + modelname
-    model = fitsio.read(os.path.join(os.getenv('WISE_PSF_DIR'), 
-                                     'psf_model_w'+str(band)+modelname+'.fits'))
+    model = fitsio.read(resource_filename('unwise_psf', 'data/psf_model_w' + str(band)+modelname+'.fits'))
 
     if frames is None:
         model = average_two_scandirs(model)
