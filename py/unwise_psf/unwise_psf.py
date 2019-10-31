@@ -95,7 +95,12 @@ def get_astrom_atlas():
 
 def _get_astrometry(coadd_id):
     atlas = get_astrom_atlas()
-    match, = np.nonzero([c.decode() == coadd_id for c in atlas['COADD_ID']])
+    # In python3, fitsio <= 0.9.12 returns FITS string types as bytes.
+    # This is fixed in 1.0.1.  python2 doesn't have an issue (except end-of-life!)
+    if isinstance(atlas['COADD_ID'][0], bytes):
+        match, = np.nonzero([c.decode() == coadd_id for c in atlas['COADD_ID']])
+    else:
+        match, = np.nonzero([c == coadd_id for c in atlas['COADD_ID']])
     assert(len(match) == 1)
     return atlas[match[0]]
 
